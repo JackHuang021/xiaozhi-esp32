@@ -162,6 +162,8 @@ choice BOARD_TYPE
         bool "四博智联AI陪伴盒子"
     config BOARD_TYPE_MIXGO_NOVA
         bool "元控·青春"
+    config BOARD_TYPE_HUILE_C3
+        bool "汇乐摇摆鹅 ESP32C3主控板"
 endchoice
 
 choice DISPLAY_OLED_TYPE
