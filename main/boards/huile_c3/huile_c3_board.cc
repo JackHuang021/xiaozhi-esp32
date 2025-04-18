@@ -28,7 +28,8 @@ private:
     esp_lcd_panel_io_handle_t panel_io_ = nullptr;
     esp_lcd_panel_handle_t panel_ = nullptr;
     Display* display_ = nullptr;
-    Button boot_button_;
+    Button touch_btn_;
+    Button switch_btn_;
     bool press_to_talk_enabled_ = false;
     PowerSaveTimer* power_save_timer_;
 
@@ -120,7 +121,7 @@ private:
     }
 
     void InitializeButtons() {
-        boot_button_.OnClick([this]() {
+        touch_btn_.OnClick([this]() {
             auto& app = Application::GetInstance();
             if (app.GetDeviceState() == kDeviceStateStarting && !WifiStation::GetInstance().IsConnected()) {
                 ResetWifiConfiguration();
@@ -129,13 +130,13 @@ private:
                 app.ToggleChatState();
             }
         });
-        boot_button_.OnPressDown([this]() {
+        touch_btn_.OnPressDown([this]() {
             power_save_timer_->WakeUp();
             if (press_to_talk_enabled_) {
                 Application::GetInstance().StartListening();
             }
         });
-        boot_button_.OnPressUp([this]() {
+        touch_btn_.OnPressUp([this]() {
             if (press_to_talk_enabled_) {
                 Application::GetInstance().StopListening();
             }
@@ -153,7 +154,7 @@ private:
     }
 
 public:
-    HuileC3Board() : boot_button_(TOUCH_BUTTON_GPIO) {  
+    HuileC3Board() : touch_btn_(TOUCH_BUTTON_GPIO), switch_btn_(SWITCH_GPIO) {
         // 把 ESP32C3 的 VDD SPI 引脚作为普通 GPIO 口使用
         esp_efuse_write_field_bit(ESP_EFUSE_VDD_SPI_AS_GPIO);
 
