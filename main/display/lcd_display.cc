@@ -271,7 +271,7 @@ LcdDisplay::~LcdDisplay() {
 void LcdDisplay::addInputDev(esp_lcd_touch_handle_t tp_handle,
                              lv_indev_read_cb_t read_cb) {
     tp_handle_ = tp_handle;
-    read_cb = read_cb;
+    indev_read_cb_ = read_cb;
 
     /* setup input device */
     if (tp_handle_ && indev_read_cb_ && display_) {
