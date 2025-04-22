@@ -29,7 +29,7 @@
 #define LCD_CS_PIN GPIO_NUM_21
 
 #define TOUCH_I2C_SCL   GPIO_NUM_4
-#define TOUCH_I2C_SDA   GPIO_NUM_5
+#define TOUCH_I2C_SDA   GPIO_NUM_6
 
 #define DISPLAY_WIDTH    320
 #define DISPLAY_HEIGHT   240

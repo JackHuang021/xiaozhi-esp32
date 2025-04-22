@@ -127,8 +127,8 @@ private:
             .rst_gpio_num = GPIO_NUM_NC,
             .int_gpio_num = GPIO_NUM_NC,
             .flags = {
-                .swap_xy = 0,
-                .mirror_x = 1,
+                .swap_xy = 1,
+                .mirror_x = 0,
                 .mirror_y = 0,
             },
         };
