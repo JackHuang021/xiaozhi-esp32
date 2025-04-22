@@ -80,10 +80,14 @@ static ThemeColors current_theme = LIGHT_THEME;
 
 LV_FONT_DECLARE(font_awesome_30_4);
 
-SpiLcdDisplay::SpiLcdDisplay(esp_lcd_panel_io_handle_t panel_io, esp_lcd_panel_handle_t panel,
-                           int width, int height, int offset_x, int offset_y, bool mirror_x, bool mirror_y, bool swap_xy,
-                           DisplayFonts fonts)
-    : LcdDisplay(panel_io, panel, fonts) {
+SpiLcdDisplay::SpiLcdDisplay(esp_lcd_panel_io_handle_t panel_io,
+                             esp_lcd_panel_handle_t panel,
+                             esp_lcd_touch_handle_t tp_handle,
+                             lv_indev_read_cb_t read_cb,
+                             int width, int height, int offset_x, int offset_y,
+                             bool mirror_x, bool mirror_y, bool swap_xy,
+                             DisplayFonts fonts)
+    : LcdDisplay(panel_io, panel, tp_handle, read_cb, fonts) {
     width_ = width;
     height_ = height;
 
@@ -143,6 +147,15 @@ SpiLcdDisplay::SpiLcdDisplay(esp_lcd_panel_io_handle_t panel_io, esp_lcd_panel_h
         lv_display_set_offset(display_, offset_x, offset_y);
     }
 
+    /* setup input device */
+    if (tp_handle_ && indev_read_cb_) {
+        indev_ = lv_indev_create();
+        lv_indev_set_type(indev_, LV_INDEV_TYPE_POINTER);
+        lv_indev_set_read_cb(indev_, indev_read_cb_);
+        lv_indev_set_disp(indev_, display_);
+        lv_indev_set_driver_data(indev_, tp_handle_);
+    }
+
     // Update the theme
     if (current_theme_name_ == "dark") {
         current_theme = DARK_THEME;
@@ -158,7 +171,7 @@ RgbLcdDisplay::RgbLcdDisplay(esp_lcd_panel_io_handle_t panel_io, esp_lcd_panel_h
                            int width, int height, int offset_x, int offset_y,
                            bool mirror_x, bool mirror_y, bool swap_xy,
                            DisplayFonts fonts)
-    : LcdDisplay(panel_io, panel, fonts) {
+    : LcdDisplay(panel_io, panel, nullptr, nullptr, fonts) {
     width_ = width;
     height_ = height;
     
