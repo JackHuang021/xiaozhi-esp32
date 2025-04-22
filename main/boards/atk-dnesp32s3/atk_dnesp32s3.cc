@@ -10,6 +10,7 @@
 
 #include <esp_log.h>
 #include <esp_lcd_panel_vendor.h>
+#include <esp_lcd_touch_ft5x06.h>
 #include <driver/i2c_master.h>
 #include <driver/spi_common.h>
 #include <wifi_station.h>
@@ -51,6 +52,7 @@ public:
 class atk_dnesp32s3 : public WifiBoard {
 private:
     i2c_master_bus_handle_t i2c_bus_;
+    i2c_master_bus_handle_t tp_i2c_bus_;
     Button boot_button_;
     LcdDisplay* display_;
     XL9555* xl9555_;
@@ -70,6 +72,21 @@ private:
             },
         };
         ESP_ERROR_CHECK(i2c_new_master_bus(&i2c_bus_cfg, &i2c_bus_));
+
+        // Initialize touch i2c bus
+        i2c_master_bus_config_t tp_i2c_buf_cfg = {
+            .i2c_port = I2C_NUM_1,
+            .sda_io_num = TOUCH_I2C_SDA,
+            .scl_io_num = TOUCH_I2C_SCL,
+            .clk_source = I2C_CLK_SRC_DEFAULT,
+            .glitch_ignore_cnt = 7,
+            .intr_priority = 0,
+            .trans_queue_depth = 0,
+            .flags = {
+                .enable_internal_pullup = 1,
+            },
+        };
+        ESP_ERROR_CHECK(i2c_new_master_bus(&tp_i2c_buf_cfg, &tp_i2c_bus_));
 
         // Initialize XL9555
         xl9555_ = new XL9555(i2c_bus_, 0x20);
@@ -95,6 +112,32 @@ private:
             }
             app.ToggleChatState();
         });
+    }
+
+    void InitializeFt5x06() {
+        esp_lcd_panel_io_handle_t tp_io_handle;
+        esp_lcd_touch_handle_t tp_handle;
+        esp_lcd_panel_io_i2c_config_t tp_io_config = ESP_LCD_TOUCH_IO_I2C_FT5x06_CONFIG();
+
+        tp_io_config.scl_speed_hz = 400000;
+
+        esp_lcd_touch_config_t tp_config = {
+            .x_max = DISPLAY_WIDTH,
+            .y_max = DISPLAY_HEIGHT,
+            .rst_gpio_num = GPIO_NUM_NC,
+            .int_gpio_num = GPIO_NUM_NC,
+            .flags = {
+                .swap_xy = 0,
+                .mirror_x = 1,
+                .mirror_y = 0,
+            },
+        };
+
+        esp_lcd_new_panel_io_i2c_v2(this->tp_i2c_bus_, &tp_io_config,
+                                    &tp_io_handle);
+        esp_lcd_touch_new_i2c_ft5x06(tp_io_handle, &tp_config,
+                                     &tp_handle);
+        display_->addInputDev(tp_handle, &(atk_dnesp32s3::touch_cb));
     }
 
     void InitializeSt7789Display() {
@@ -130,7 +173,10 @@ private:
         esp_lcd_panel_swap_xy(panel, DISPLAY_SWAP_XY); 
         esp_lcd_panel_mirror(panel, DISPLAY_MIRROR_X, DISPLAY_MIRROR_Y);
         display_ = new SpiLcdDisplay(panel_io, panel,
-                                    DISPLAY_WIDTH, DISPLAY_HEIGHT, DISPLAY_OFFSET_X, DISPLAY_OFFSET_Y, DISPLAY_MIRROR_X, DISPLAY_MIRROR_Y, DISPLAY_SWAP_XY,
+                                    DISPLAY_WIDTH, DISPLAY_HEIGHT,
+                                    DISPLAY_OFFSET_X, DISPLAY_OFFSET_Y,
+                                    DISPLAY_MIRROR_X, DISPLAY_MIRROR_Y,
+                                    DISPLAY_SWAP_XY,
                                     {
                                         .text_font = &font_puhui_20_4,
                                         .icon_font = &font_awesome_20_4,
@@ -154,6 +200,7 @@ public:
         InitializeI2c();
         InitializeSpi();
         InitializeSt7789Display();
+        InitializeFt5x06();
         InitializeButtons();
         InitializeIot();
     }
@@ -182,6 +229,29 @@ public:
 
     virtual Display* GetDisplay() override {
         return display_;
+    }
+
+    static void touch_cb(lv_indev_t *indev, lv_indev_data_t *data) {
+        uint16_t touchpad_x;
+        uint16_t touchpad_y;
+        uint8_t touchpad_cnt = 0;
+        esp_lcd_touch_handle_t tp_handle =
+                        (esp_lcd_touch_handle_t)lv_indev_get_driver_data(indev);
+
+        /* Read touch controller data */
+        esp_lcd_touch_read_data(tp_handle);
+
+        /* Get coordinates */
+        bool touchpad_pressed = esp_lcd_touch_get_coordinates(tp_handle,
+                            &touchpad_x, &touchpad_y, NULL, &touchpad_cnt, 1);
+
+        if (touchpad_pressed && touchpad_cnt > 0) {
+            data->point.x = touchpad_x;
+            data->point.y = touchpad_y;
+            data->state = LV_INDEV_STATE_PRESSED;
+        } else {
+            data->state = LV_INDEV_STATE_RELEASED;
+        }
     }
 };
 
