@@ -33,14 +33,12 @@ protected:
     // 添加protected构造函数
     LcdDisplay(esp_lcd_panel_io_handle_t panel_io,
                esp_lcd_panel_handle_t panel,
-               esp_lcd_touch_handle_t tp_handle,
-               lv_indev_read_cb_t read_cb,
                DisplayFonts fonts)
-        : panel_io_(panel_io), panel_(panel),
-          tp_handle_(tp_handle), indev_read_cb_(read_cb), fonts_(fonts) {}
+        : panel_io_(panel_io), panel_(panel), fonts_(fonts) {}
     
 public:
     ~LcdDisplay();
+    void addInputDev(esp_lcd_touch_handle_t tp_handle, lv_indev_read_cb_t read_cb);
     virtual void SetEmotion(const char* emotion) override;
     virtual void SetIcon(const char* icon) override;
 #if CONFIG_USE_WECHAT_MESSAGE_STYLE
@@ -74,8 +72,6 @@ class SpiLcdDisplay : public LcdDisplay {
 public:
     SpiLcdDisplay(esp_lcd_panel_io_handle_t panel_io,
                   esp_lcd_panel_handle_t panel,
-                  esp_lcd_touch_handle_t tp_handle,
-                  lv_indev_read_cb_t read_cb,
                   int width, int height, int offset_x, int offset_y,
                   bool mirror_x, bool mirror_y, bool swap_xy,
                   DisplayFonts fonts);
