@@ -219,7 +219,7 @@ private:
         if (ESP_OK != ret) {
             ESP_LOGE(TAG, "failed to init ssd1306");
             display_ = new NoDisplay();
-            return;
+            return ret;
         }
 
         ESP_LOGI(TAG, "init ssd1306 done");
@@ -229,6 +229,8 @@ private:
                                    DISPLAY_WIDTH, DISPLAY_HEIGHT,
                                    DISPLAY_MIRROR_X, DISPLAY_MIRROR_Y,
                                    {&font_puhui_14_1, &font_awesome_14_1});
+
+        return ret;
     }
 
     void InitMCPTools() {
