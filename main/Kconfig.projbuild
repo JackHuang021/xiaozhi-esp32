@@ -303,6 +303,8 @@ choice BOARD_TYPE
     depends on IDF_TARGET_ESP32S3
     config BOARD_TYPE_SURFER_C3_1_14TFT
         bool "Surfer-C3-1-14TFT"
+    config BOARD_TYPE_HUILE_C3
+        bool "汇乐摇摆鹅 esp32c3 主控板"
         depends on IDF_TARGET_ESP32C3
 endchoice
 
@@ -316,10 +318,6 @@ choice ESP_S3_LCD_EV_Board_Version_TYPE
         bool "乐鑫ESP32_S3_LCD_EV_Board-MB_V1.4"
     config ESP_S3_LCD_EV_Board_1p5
         bool "乐鑫ESP32_S3_LCD_EV_Board-MB_V1.5"
-
-    config BOARD_TYPE_HUILE_C3
-            bool "汇乐摇摆鹅 esp32c3 主控板"
-
 endchoice
 
 choice DISPLAY_OLED_TYPE

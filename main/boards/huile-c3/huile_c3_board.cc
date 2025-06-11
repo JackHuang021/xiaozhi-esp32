@@ -9,6 +9,7 @@
 #include "config.h"
 #include "power_save_timer.h"
 #include "font_awesome_symbols.h"
+#include "mcp_server.h"
 
 #include <wifi_station.h>
 #include <esp_log.h>
@@ -143,14 +144,23 @@ private:
     }
 
     void InitializeButtons() {
+        // 触摸按键按下后再弹起则触发录音
         touch_button_.OnClick([this]() {
             auto& app = Application::GetInstance();
-            if (app.GetDeviceState() == kDeviceStateStarting && !WifiStation::GetInstance().IsConnected()) {
+            if (app.GetDeviceState() == kDeviceStateStarting &&
+                !WifiStation::GetInstance().IsConnected()) {
                 ResetWifiConfiguration();
             }
                 app.ToggleChatState();
         });
 
+        // 触摸按键按下后唤醒设备
+        touch_button_.OnPressDown([this]() {
+            if (power_save_timer_)
+                power_save_timer_->WakeUp();
+        });
+
+        // 提起检测的限位开关处理
         switch_button_.OnPressDown([this]() {
             lift_up_ = true;
         });
@@ -158,12 +168,6 @@ private:
         switch_button_.OnPressUp([this]() {
             lift_up_ = false;
         });
-    }
-
-    // 物联网初始化，添加对 AI 可见设备
-    void InitializeIot() {
-        auto& thing_manager = iot::ThingManager::GetInstance();
-        thing_manager.AddThing(iot::CreateThing("Speaker"));
     }
 
     void InitializePWM() {
@@ -175,6 +179,76 @@ private:
                             0, MAG_PWM_GPIO);
     }
 
+    esp_err_t InitializeOledDisplay() {
+        esp_err_t ret = ESP_OK;
+        esp_lcd_panel_io_i2c_config_t panel_io_config = {
+            .dev_addr = 0x3C,
+            .on_color_trans_done = nullptr,
+            .user_ctx = nullptr,
+            .control_phase_bytes = 1,
+            .dc_bit_offset = 6,
+            .lcd_cmd_bits = 8,
+            .lcd_param_bits = 8,
+            .flags = {
+                .dc_low_on_data = 0,
+                .disable_control_phase = 0,
+            },
+            .scl_speed_hz = 400 * 1000,
+        };
+
+        ret = esp_lcd_new_panel_io_i2c_v2(codec_i2c_bus_, &panel_io_config,
+                                          &panel_io_);
+
+        ESP_RETURN_ON_ERROR(ret, TAG, "failed to create lcd panel");
+
+        esp_lcd_panel_dev_config_t panel_config = {};
+        panel_config.reset_gpio_num = GPIO_NUM_NC;
+        panel_config.bits_per_pixel = 1;
+
+        esp_lcd_panel_ssd1306_config_t ssd1306_config = {
+            .height = DISPLAY_HEIGHT,
+        };
+        panel_config.vendor_config = &ssd1306_config;
+
+        ret = esp_lcd_new_panel_ssd1306(panel_io_, &panel_config, &panel_);
+        ESP_RETURN_ON_ERROR(ret, TAG, "failed to create ssd1306");
+
+        ret = esp_lcd_panel_reset(panel_);
+        ESP_RETURN_ON_ERROR(ret, TAG, "failed to reset lcd panel");
+        ret = esp_lcd_panel_init(panel_);
+        if (ESP_OK != ret) {
+            ESP_LOGE(TAG, "failed to init ssd1306");
+            display_ = new NoDisplay();
+            return;
+        }
+
+        ESP_LOGI(TAG, "init ssd1306 done");
+        ret = esp_lcd_panel_disp_on_off(panel_, true);
+
+        display_ = new OledDisplay(panel_io_, panel_,
+                                   DISPLAY_WIDTH, DISPLAY_HEIGHT,
+                                   DISPLAY_MIRROR_X, DISPLAY_MIRROR_Y,
+                                   {&font_puhui_14_1, &font_awesome_14_1});
+    }
+
+    void InitMCPTools() {
+        auto& mcp_server = McpServer::GetInstance();
+
+        // 汇乐鹅跳舞
+        mcp_server.AddTool("self.huile.dance", "汇乐鹅跳舞", PropertyList(),
+                [this](const PropertyList& properties) -> ReturnValue {
+            ESP_LOGI(TAG, "huile dance");
+            return true;
+        });
+
+        // 张张嘴
+        mcp_server.AddTool("self.huile.mouth_move", "汇乐鹅张张嘴", PropertyList(),
+                [this](const PropertyList& properties) -> ReturnValue {
+            ESP_LOGI(TAG, "huile mouse move");
+            return true;
+        });
+    }
+
 public:
     HuileC3Board() : touch_button_(TOUCH_BUTTON_GPIO),
                      switch_button_(SWITCH_GPIO, true) {
@@ -184,9 +258,10 @@ public:
         display_ = new NoDisplay();
 
         InitializeCodecI2c();
+        InitializeOledDisplay();
         InitializeButtons();
         InitializePowerSaveTimer();
-        InitializeIot();
+        InitMCPTools();
     }
 
     virtual Led* GetLed() override {
@@ -207,8 +282,3 @@ public:
 };
 
 DECLARE_BOARD(HuileC3Board);
-
-
-namespace iot {
-
-} // namespace iot
