@@ -25,72 +25,6 @@
 LV_FONT_DECLARE(font_puhui_14_1);
 LV_FONT_DECLARE(font_awesome_14_1);
 
-class PWM {
-private:
-    ledc_timer_t timer_num_;
-    uint32_t freq_hz_;
-    ledc_timer_bit_t duty_resolution_;
-    ledc_mode_t speed_mode_;
-    ledc_channel_t channel_;
-    uint32_t duty_;
-    uint8_t duty_to_percent_;
-    gpio_num_t gpio_;
-
-public:
-
-    esp_err_t setupPWM(ledc_timer_t timer_num, uint32_t freq_hz,
-        ledc_timer_bit_t duty_resolution, ledc_mode_t speed_mode,
-        ledc_channel_t channel, uint32_t duty, gpio_num_t gpio) {
-
-        esp_err_t ret = ESP_OK;
-
-        this->timer_num_ = timer_num;
-        this->freq_hz_ = freq_hz;
-        this->duty_resolution_ = duty_resolution;
-        this->speed_mode_ = speed_mode;
-        this->channel_ = channel;
-        this->duty_ = duty;
-        this->gpio_ = gpio;
-
-        ledc_timer_config_t timer_config = {
-            .speed_mode = this->speed_mode_,
-            .duty_resolution = this->duty_resolution_,
-            .timer_num = this->timer_num_,
-            .freq_hz = this->freq_hz_,
-            .clk_cfg = LEDC_AUTO_CLK,
-        };
-
-        ledc_channel_config_t channel_config = {
-            .gpio_num = this->gpio_,
-            .speed_mode = this->speed_mode_,
-            .channel = this->channel_,
-            .intr_type = LEDC_INTR_DISABLE,
-            .timer_sel = this->timer_num_,
-            .duty = this->duty_,
-        };
-
-        ret = ledc_timer_config(&timer_config);
-        ESP_RETURN_ON_ERROR(ret, TAG, "ledc timer config failed");
-        ret = ledc_channel_config(&channel_config);
-        ESP_RETURN_ON_ERROR(ret, TAG, "ledc channel config failed");
-
-        return ret;
-    }
-
-    esp_err_t setDuty(uint8_t duty) {
-        esp_err_t ret = ESP_OK;
-
-        this->duty_to_percent_ = duty;
-        this->duty_ = (1 << this->duty_resolution_) * duty / 100;
-        ret = ledc_set_duty(this->speed_mode_, this->channel_, this->duty_);
-        ESP_RETURN_ON_ERROR(ret, TAG, "set duty failed");
-        ret = ledc_update_duty(this->speed_mode_, this->channel_);
-        ESP_RETURN_ON_ERROR(ret, TAG, "update duty failed");
-
-        return ret;
-    };
-};
-
 class HuileC3Board : public WifiBoard {
 private:
     i2c_master_bus_handle_t codec_i2c_bus_;
@@ -99,8 +33,6 @@ private:
     Display* display_ = nullptr;
     Button touch_button_;
     Button switch_button_;
-    PWM motor_pwm_;
-    PWM mag_pwm_;
     bool lift_up_ = false;
     PowerSaveTimer* power_save_timer_;
 
@@ -171,12 +103,7 @@ private:
     }
 
     void InitializePWM() {
-        motor_pwm_.setupPWM(LEDC_TIMER_0, 4000, LEDC_TIMER_13_BIT,
-                            LEDC_LOW_SPEED_MODE, LEDC_CHANNEL_0,
-                            0, MOTOR_PWM_GPIO);
-        mag_pwm_.setupPWM(LEDC_TIMER_1, 4000, LEDC_TIMER_13_BIT,
-                            LEDC_LOW_SPEED_MODE, LEDC_CHANNEL_1,
-                            0, MAG_PWM_GPIO);
+
     }
 
     esp_err_t InitializeOledDisplay() {
