@@ -10,6 +10,7 @@
 #include "power_save_timer.h"
 #include "font_awesome_symbols.h"
 #include "mcp_server.h"
+#include "motion.h"
 
 #include <wifi_station.h>
 #include <esp_log.h>
@@ -35,6 +36,7 @@ private:
     Button switch_button_;
     bool lift_up_ = false;
     PowerSaveTimer* power_save_timer_;
+    Motion motion_;
 
     void InitializePowerSaveTimer() {
         power_save_timer_ = new PowerSaveTimer(160, 60);
@@ -164,16 +166,25 @@ private:
         auto& mcp_server = McpServer::GetInstance();
 
         // 汇乐鹅跳舞
-        mcp_server.AddTool("self.huile.dance", "汇乐鹅跳舞", PropertyList(),
+        mcp_server.AddTool("self.huile.dance", "大鹅跳舞", PropertyList(),
                 [this](const PropertyList& properties) -> ReturnValue {
             ESP_LOGI(TAG, "huile dance");
+            motion_.motionSend(STATE_DANCE);
             return true;
         });
 
         // 张张嘴
-        mcp_server.AddTool("self.huile.mouth_move", "汇乐鹅张张嘴", PropertyList(),
+        mcp_server.AddTool("self.huile.mouth_move", "大鹅张张嘴", PropertyList(),
                 [this](const PropertyList& properties) -> ReturnValue {
             ESP_LOGI(TAG, "huile mouse move");
+            return true;
+        });
+
+        // 停止运动
+        mcp_server.AddTool("self.huile.stop", "大鹅停止动作", PropertyList(),
+                [this](const PropertyList& properties) -> ReturnValue {
+            ESP_LOGI(TAG, "huile stop");
+            motion_.motionSend(STATE_IDLE);
             return true;
         });
     }
@@ -190,6 +201,7 @@ public:
         InitializeOledDisplay();
         InitializeButtons();
         InitializePowerSaveTimer();
+        motion_.motionInit();
         InitMCPTools();
     }
 

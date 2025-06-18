@@ -9,10 +9,10 @@
  * 
  */
 
- #pragma once
+#pragma once
 
- #include "esp_err.h"
- #include "driver/ledc.h"
+#include "esp_err.h"
+#include "driver/ledc.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -20,7 +20,44 @@ extern "C" {
 
 enum motion_state {
     STATE_DANCE,
+    STATE_LIFT,
     STATE_IDLE,
+    STATE_MAX,
+};
+
+class PWM {
+private:
+    ledc_timer_t timer_num_;
+    uint32_t freq_hz_;
+    ledc_timer_bit_t duty_resolution_;
+    ledc_mode_t speed_mode_;
+    ledc_channel_t channel_;
+    uint32_t duty_;
+    uint8_t duty_to_percent_;
+    gpio_num_t gpio_;
+
+public:
+    esp_err_t setupPWM(ledc_timer_t timer_num, uint32_t freq_hz,
+            ledc_timer_bit_t duty_resolution, ledc_mode_t speed_mode,
+            ledc_channel_t channel, uint32_t duty, gpio_num_t gpio);
+
+    esp_err_t setDuty(uint8_t duty);
+};
+
+class Motion {
+private:
+    QueueHandle_t action_queue_;
+    enum motion_state state;
+
+    static void motion_task(void *arg);
+
+public:
+    PWM motor_pwm_;
+    PWM mag_pwm_;
+
+    Motion();
+    esp_err_t motionInit();
+    void motionSend(enum motion_state state);
 };
 
 #ifdef __cplusplus
