@@ -166,10 +166,14 @@ private:
         auto& mcp_server = McpServer::GetInstance();
 
         // 汇乐鹅跳舞
-        mcp_server.AddTool("self.huile.dance", "大鹅跳舞", PropertyList(),
-                [this](const PropertyList& properties) -> ReturnValue {
-            ESP_LOGI(TAG, "huile dance");
-            motion_.motionSend(STATE_DANCE);
+        mcp_server.AddTool("self.huile.dance", "大鹅跳舞，跳舞时间在3S-15S之间随机取值",
+            PropertyList({ Property("time", kPropertyTypeInteger, 3, 15)}),
+            [this](const PropertyList& properties) -> ReturnValue {
+            int time = properties["time"].value<int>();
+            struct motion_args args;
+            args.hold_time_ms = time * 1000;
+            ESP_LOGI(TAG, "huile dance, time: %d", time);
+            motion_.motionSend(STATE_DANCE, &args);
             return true;
         });
 
@@ -184,7 +188,7 @@ private:
         mcp_server.AddTool("self.huile.stop", "大鹅停止动作", PropertyList(),
                 [this](const PropertyList& properties) -> ReturnValue {
             ESP_LOGI(TAG, "huile stop");
-            motion_.motionSend(STATE_IDLE);
+            motion_.motionSend(STATE_IDLE, NULL);
             return true;
         });
     }

@@ -12,12 +12,6 @@
 
 const static char *TAG = "huile_c3";
 
-struct motion_args {
-    Motion *motion;
-    int16_t speed;
-    int16_t hold_time_ms;
-};
-
 struct motion_msg {
     motion_args args;
     motion_state state;
@@ -156,10 +150,12 @@ void Motion::motion_task(void *arg)
     ESP_LOGI(TAG, "motion task deleted");
 }
 
-void Motion::motionSend(enum motion_state state)
+void Motion::motionSend(enum motion_state state, struct motion_args *args)
 {
     struct motion_msg msg = {0};
 
     msg.state = state;
+    if (args != NULL)
+        memcpy(&msg.args, args, sizeof(struct motion_args));
     xQueueSend(action_queue_, &msg, portMAX_DELAY);
 }

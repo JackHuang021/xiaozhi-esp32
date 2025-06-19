@@ -18,6 +18,12 @@
 extern "C" {
 #endif
 
+struct motion_args {
+    Motion *motion;
+    int16_t speed;
+    int16_t hold_time_ms;
+};
+
 enum motion_state {
     STATE_DANCE,
     STATE_LIFT,
@@ -57,7 +63,7 @@ public:
 
     Motion();
     esp_err_t motionInit();
-    void motionSend(enum motion_state state);
+    void motionSend(enum motion_state state, struct motion_args *args);
 };
 
 #ifdef __cplusplus
