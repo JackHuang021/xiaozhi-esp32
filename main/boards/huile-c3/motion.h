@@ -18,12 +18,6 @@
 extern "C" {
 #endif
 
-struct motion_args {
-    Motion *motion;
-    int16_t speed;
-    int16_t hold_time_ms;
-};
-
 enum motion_state {
     STATE_DANCE,
     STATE_LIFT,
@@ -66,6 +60,13 @@ public:
     void motionSend(enum motion_state state, struct motion_args *args);
 };
 
+struct motion_args {
+    Motion *motion;
+    int16_t speed;
+    int16_t hold_time_ms;
+};
+
 #ifdef __cplusplus
 }
 #endif
+
