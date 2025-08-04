@@ -85,6 +85,9 @@ private:
                 ResetWifiConfiguration();
             }
                 app.ToggleChatState();
+            // 按下触摸按键，停止运动
+            if (motion_.getMotionState() != STATE_IDLE)
+                motion_.motionSend(STATE_IDLE, NULL);
         });
 
         // 触摸按键按下后唤醒设备
@@ -96,15 +99,15 @@ private:
         // 提起检测的限位开关处理
         switch_button_.OnPressDown([this]() {
             lift_up_ = true;
+            std::string wake_word="大鹅被主人放下来了";
+            Application::GetInstance().WakeWordInvoke(wake_word);
         });
 
         switch_button_.OnPressUp([this]() {
             lift_up_ = false;
+            std::string wake_word="大鹅被主人提起来了";
+            Application::GetInstance().WakeWordInvoke(wake_word);
         });
-    }
-
-    void InitializePWM() {
-
     }
 
     esp_err_t InitializeOledDisplay() {
@@ -165,7 +168,7 @@ private:
         auto& mcp_server = McpServer::GetInstance();
 
         // 汇乐鹅跳舞
-        mcp_server.AddTool("self.huile.dance", "大鹅跳舞，跳舞时间在3S-15S之间随机取值",
+        mcp_server.AddTool("self.huile.dance", "大鹅跳舞，跳舞时间在3S-15S之间随机取值，跳舞的过程中同时唱歌",
             PropertyList({ Property("time", kPropertyTypeInteger, 3, 15)}),
             [this](const PropertyList& properties) -> ReturnValue {
             int time = properties["time"].value<int>();
@@ -177,7 +180,7 @@ private:
         });
 
         // 张张嘴
-        mcp_server.AddTool("self.huile.mouth_move", "大鹅张张嘴", PropertyList(),
+        mcp_server.AddTool("self.huile.mouth_move", "大鹅张张嘴，张嘴的时间在3S-15S之间随机取值，张嘴的同时说一些话逗主人开心", PropertyList(),
                 [this](const PropertyList& properties) -> ReturnValue {
             ESP_LOGI(TAG, "huile mouse move");
             return true;
@@ -187,6 +190,22 @@ private:
         mcp_server.AddTool("self.huile.stop", "大鹅停止动作", PropertyList(),
                 [this](const PropertyList& properties) -> ReturnValue {
             ESP_LOGI(TAG, "huile stop");
+            motion_.motionSend(STATE_IDLE, NULL);
+            return true;
+        });
+
+        // 提起脖子
+        mcp_server.AddTool("self.huile.lift", "大鹅被提起脖子后循环哀求主人放它下来，直到被放下来", PropertyList(),
+                [this](const PropertyList& properties) -> ReturnValue {
+            ESP_LOGI(TAG, "huile lifted");
+            motion_.motionSend(STATE_LIFT, NULL);
+            return true;
+        });
+
+        // 放下大鹅
+        mcp_server.AddTool("self.huile.put_down", "大鹅被放下了，说一句感谢主人的话", PropertyList(),
+                [this](const PropertyList& properties) -> ReturnValue {
+            ESP_LOGI(TAG, "huile put down");
             motion_.motionSend(STATE_IDLE, NULL);
             return true;
         });

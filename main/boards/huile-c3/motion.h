@@ -50,12 +50,14 @@ private:
     enum motion_state state;
 
     static void motion_task(void *arg);
+    static void mouth_action(void);
 
 public:
     PWM motor_pwm_;
     PWM mag_pwm_;
 
     Motion();
+    motion_state getMotionState();
     esp_err_t motionInit();
     void motionSend(enum motion_state state, struct motion_args *args);
 };

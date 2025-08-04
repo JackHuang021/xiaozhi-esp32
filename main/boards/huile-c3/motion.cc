@@ -9,6 +9,7 @@
 #include "config.h"
 #include "driver/ledc.h"
 #include "motion.h"
+#include "application.h"
 
 const static char *TAG = "huile_c3";
 
@@ -32,7 +33,9 @@ static void motion_dance(struct motion_args *args)
 
 static void motion_lift(motion_args *args)
 {
+    Motion *motion = args->motion;
 
+    motion->motor_pwm_.setDuty(100);
 }
 
 static void motion_stop(motion_args *args)
@@ -105,18 +108,23 @@ Motion::Motion() {
 
 }
 
+motion_state Motion::getMotionState()
+{
+    return state;
+}
+
 esp_err_t Motion::motionInit() {
     esp_err_t ret = ESP_OK;
     action_queue_ = xQueueCreate(5, sizeof(struct motion_msg));
     ESP_GOTO_ON_FALSE(action_queue_ != NULL, ESP_ERR_NO_MEM, err, TAG,
                       "failed to create motion queue");
 
-    /* init pwm */
+    /* init pwm, motor pwm frequency: 4000 HZ */
     ret = motor_pwm_.setupPWM(LEDC_TIMER_0, 4000, LEDC_TIMER_13_BIT,
                               LEDC_LOW_SPEED_MODE, LEDC_CHANNEL_0,
                               0, MOTOR_PWM_GPIO);
     ESP_GOTO_ON_ERROR(ret, err, TAG, "failed to init motor pwm");
-    ret = mag_pwm_.setupPWM(LEDC_TIMER_1, 4000, LEDC_TIMER_13_BIT,
+    ret = mag_pwm_.setupPWM(LEDC_TIMER_1, 20, LEDC_TIMER_5_BIT,
                             LEDC_LOW_SPEED_MODE, LEDC_CHANNEL_1,
                             0, MAG_PWM_GPIO);
     ESP_GOTO_ON_ERROR(ret, err, TAG, "failed to init mag pwm");
@@ -131,23 +139,30 @@ err:
 
 void Motion::motion_task(void *arg)
 {
-    struct motion_args args = {0};
     struct motion_msg msg = {0};
     Motion *self = static_cast<Motion *>(arg);
-    args.motion = self;
 
     while (1) {
         if (xQueueReceive(self->action_queue_, &msg, portMAX_DELAY)) {
             self->state = msg.state;
-            
+            msg.args.motion = self;
+
             ESP_LOGI(TAG, "state: %d, motion: %s", self->state, motion_table[self->state].name);
             if (self->state < STATE_MAX) {
-                motion_table[self->state].funtion(&args);
+                motion_table[self->state].funtion(&msg.args);
             }
         }
     }
     vTaskDelete(NULL);
     ESP_LOGI(TAG, "motion task deleted");
+}
+
+void Motion::mouth_action(void)
+{
+    if (Application::GetInstance().GetDeviceState() == kDeviceStateSpeaking)
+    {
+
+    }
 }
 
 void Motion::motionSend(enum motion_state state, struct motion_args *args)
