@@ -35,7 +35,6 @@ private:
     Button switch_button_;
     bool lift_up_ = false;
     PowerSaveTimer* power_save_timer_;
-    Motion motion_;
 
     void InitializePowerSaveTimer() {
         power_save_timer_ = new PowerSaveTimer(160, 60);
@@ -86,8 +85,8 @@ private:
             }
                 app.ToggleChatState();
             // 按下触摸按键，停止运动
-            if (motion_.getMotionState() != STATE_IDLE)
-                motion_.motionSend(STATE_IDLE, NULL);
+            if (Motion::GetInstance().getMotionState() != STATE_IDLE)
+                Motion::GetInstance().motionSend(STATE_IDLE, NULL);
         });
 
         // 触摸按键按下后唤醒设备
@@ -175,7 +174,7 @@ private:
             struct motion_args args;
             args.hold_time_ms = time * 1000;
             ESP_LOGI(TAG, "huile dance, time: %d", time);
-            motion_.motionSend(STATE_DANCE, &args);
+            Motion::GetInstance().motionSend(STATE_DANCE, &args);
             return true;
         });
 
@@ -190,23 +189,23 @@ private:
         mcp_server.AddTool("self.huile.stop", "大鹅停止动作", PropertyList(),
                 [this](const PropertyList& properties) -> ReturnValue {
             ESP_LOGI(TAG, "huile stop");
-            motion_.motionSend(STATE_IDLE, NULL);
+            Motion::GetInstance().motionSend(STATE_IDLE, NULL);
             return true;
         });
 
         // 提起脖子
-        mcp_server.AddTool("self.huile.lift", "大鹅被提起脖子后循环哀求主人放它下来，直到被放下来", PropertyList(),
+        mcp_server.AddTool("self.huile.lift", "大鹅被主人提起脖子了，请循环哀求主人放它下来，直到被放下来", PropertyList(),
                 [this](const PropertyList& properties) -> ReturnValue {
             ESP_LOGI(TAG, "huile lifted");
-            motion_.motionSend(STATE_LIFT, NULL);
+            Motion::GetInstance().motionSend(STATE_LIFT, NULL);
             return true;
         });
 
         // 放下大鹅
-        mcp_server.AddTool("self.huile.put_down", "大鹅被放下了，说一句感谢主人的话", PropertyList(),
+        mcp_server.AddTool("self.huile.put_down", "大鹅被主人放下了，说一句感谢主人的话", PropertyList(),
                 [this](const PropertyList& properties) -> ReturnValue {
             ESP_LOGI(TAG, "huile put down");
-            motion_.motionSend(STATE_IDLE, NULL);
+            Motion::GetInstance().motionSend(STATE_IDLE, NULL);
             return true;
         });
     }
@@ -223,7 +222,7 @@ public:
         InitializeOledDisplay();
         InitializeButtons();
         InitializePowerSaveTimer();
-        motion_.motionInit();
+        Motion::GetInstance().motionInit();
         InitMCPTools();
     }
 

@@ -12,7 +12,9 @@
 #pragma once
 
 #include "esp_err.h"
+#include "esp_timer.h"
 #include "driver/ledc.h"
+#include "device_state.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -48,22 +50,35 @@ class Motion {
 private:
     QueueHandle_t action_queue_;
     enum motion_state state;
-
-    static void motion_task(void *arg);
-    static void mouth_action(void);
-
-public:
     PWM motor_pwm_;
     PWM mag_pwm_;
+    esp_timer_handle_t dance_timer_handle;
+
+public:
+    static Motion &GetInstance();
+    // 删除拷贝构造函数和赋值运算符
+    Motion(const Motion&) = delete;
+    Motion& operator=(const Motion&) = delete;
+
+    static void motion_task(void *arg);
+    static void motion_dance(struct motion_args *args);
+    static void motion_lift(motion_args *args);
+    static void motion_stop(motion_args *args);
+    static void motion_on_state_change(DeviceState previous, DeviceState current);
+
+private:
 
     Motion();
+
+public:
     motion_state getMotionState();
     esp_err_t motionInit();
     void motionSend(enum motion_state state, struct motion_args *args);
+    void setMotorPwm(uint8_t duty);
+    void setMagPwm(uint8_t duty);
 };
 
 struct motion_args {
-    Motion *motion;
     int16_t speed;
     int16_t hold_time_ms;
 };

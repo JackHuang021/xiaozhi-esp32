@@ -10,6 +10,8 @@
 #include "driver/ledc.h"
 #include "motion.h"
 #include "application.h"
+#include "esp_timer.h"
+#include "device_state_event.h"
 
 const static char *TAG = "huile_c3";
 
@@ -24,31 +26,42 @@ struct motion_entry {
     void (*funtion)(struct motion_args *args);
 };
 
-static void motion_dance(struct motion_args *args)
+static void dance_timer_callback(void *args)
 {
-    Motion *motion = args->motion;
-
-    motion->motor_pwm_.setDuty(100);
+    Motion *motion = static_cast<Motion *>(args);
+    motion->setMotorPwm(0);
 }
 
-static void motion_lift(motion_args *args)
+void Motion::motion_dance(struct motion_args *args)
 {
-    Motion *motion = args->motion;
+    esp_timer_start_once(Motion::GetInstance().dance_timer_handle,
+                         args->hold_time_ms * 1000);
 
-    motion->motor_pwm_.setDuty(100);
+    Motion::GetInstance().setMotorPwm(100);
 }
 
-static void motion_stop(motion_args *args)
+void Motion::motion_lift(motion_args *args)
 {
-    Motion *motion = args->motion;
+    Motion::GetInstance().setMotorPwm(100);
+}
 
-    motion->motor_pwm_.setDuty(0);
+void Motion::motion_stop(motion_args *args)
+{
+    Motion::GetInstance().setMotorPwm(100);
+}
+
+void Motion::motion_on_state_change(DeviceState previous, DeviceState current)
+{
+    if (current == kDeviceStateSpeaking)
+        Motion::GetInstance().setMagPwm(50);
+    else
+        Motion::GetInstance().setMagPwm(0);
 }
 
 struct motion_entry motion_table[STATE_MAX] = {
-    {STATE_DANCE, "dance", motion_dance},
-    {STATE_LIFT, "lift", motion_lift},
-    {STATE_IDLE, "idle", motion_stop},
+    {STATE_DANCE, "dance", Motion::motion_dance},
+    {STATE_LIFT, "lift", Motion::motion_lift},
+    {STATE_IDLE, "idle", Motion::motion_stop},
 };
 
 esp_err_t PWM::setupPWM(ledc_timer_t timer_num, uint32_t freq_hz,
@@ -108,48 +121,36 @@ Motion::Motion() {
 
 }
 
+Motion& Motion::GetInstance() {
+    static Motion instance;
+    return instance;
+}
+
 motion_state Motion::getMotionState()
 {
     return state;
 }
 
-esp_err_t Motion::motionInit() {
-    esp_err_t ret = ESP_OK;
-    action_queue_ = xQueueCreate(5, sizeof(struct motion_msg));
-    ESP_GOTO_ON_FALSE(action_queue_ != NULL, ESP_ERR_NO_MEM, err, TAG,
-                      "failed to create motion queue");
-
-    /* init pwm, motor pwm frequency: 4000 HZ */
-    ret = motor_pwm_.setupPWM(LEDC_TIMER_0, 4000, LEDC_TIMER_13_BIT,
-                              LEDC_LOW_SPEED_MODE, LEDC_CHANNEL_0,
-                              0, MOTOR_PWM_GPIO);
-    ESP_GOTO_ON_ERROR(ret, err, TAG, "failed to init motor pwm");
-    ret = mag_pwm_.setupPWM(LEDC_TIMER_1, 20, LEDC_TIMER_5_BIT,
-                            LEDC_LOW_SPEED_MODE, LEDC_CHANNEL_1,
-                            0, MAG_PWM_GPIO);
-    ESP_GOTO_ON_ERROR(ret, err, TAG, "failed to init mag pwm");
-
-    xTaskCreate(Motion::motion_task, "motion_task", 1024, this, 5, NULL);
-
-err:
-    /* 销毁的操作全部放到析构函数中 */
-    return ret;
-}
-
-
 void Motion::motion_task(void *arg)
 {
     struct motion_msg msg = {0};
-    Motion *self = static_cast<Motion *>(arg);
+
+    esp_timer_create_args_t dance_timer = {
+        .callback = dance_timer_callback,
+        .arg = NULL,
+        .dispatch_method = ESP_TIMER_TASK,
+        .name = "dance_timer"
+    };
+    esp_timer_create(&dance_timer, &Motion::GetInstance().dance_timer_handle);
 
     while (1) {
-        if (xQueueReceive(self->action_queue_, &msg, portMAX_DELAY)) {
-            self->state = msg.state;
-            msg.args.motion = self;
+        if (xQueueReceive(Motion::GetInstance().action_queue_, &msg, portMAX_DELAY)) {
+            Motion::GetInstance().state = msg.state;
 
-            ESP_LOGI(TAG, "state: %d, motion: %s", self->state, motion_table[self->state].name);
-            if (self->state < STATE_MAX) {
-                motion_table[self->state].funtion(&msg.args);
+            if (msg.state < STATE_MAX) {
+                ESP_LOGI(TAG, "state: %d, motion: %s",
+                     msg.state, motion_table[msg.state].name);
+                motion_table[msg.state].funtion(&msg.args);
             }
         }
     }
@@ -157,12 +158,29 @@ void Motion::motion_task(void *arg)
     ESP_LOGI(TAG, "motion task deleted");
 }
 
-void Motion::mouth_action(void)
-{
-    if (Application::GetInstance().GetDeviceState() == kDeviceStateSpeaking)
-    {
+esp_err_t Motion::motionInit() {
+    esp_err_t ret = ESP_OK;
 
-    }
+    action_queue_ = xQueueCreate(5, sizeof(struct motion_msg));
+    ESP_RETURN_ON_FALSE(action_queue_ != NULL, ESP_ERR_NO_MEM, TAG,
+                        "failed to create motion queue");
+
+    /* init pwm, motor pwm frequency: 4000 HZ */
+    ret = motor_pwm_.setupPWM(LEDC_TIMER_0, 4000, LEDC_TIMER_13_BIT,
+                              LEDC_LOW_SPEED_MODE, LEDC_CHANNEL_0,
+                              0, MOTOR_PWM_GPIO);
+    ESP_RETURN_ON_ERROR(ret, TAG, "failed to init motor pwm");
+    ret = mag_pwm_.setupPWM(LEDC_TIMER_1, 20, LEDC_TIMER_5_BIT,
+                            LEDC_LOW_SPEED_MODE, LEDC_CHANNEL_1,
+                            0, MAG_PWM_GPIO);
+    ESP_RETURN_ON_ERROR(ret, TAG, "failed to init mag pwm");
+
+    xTaskCreate(Motion::motion_task, "motion_task", 1024, NULL, 5, NULL);
+
+    auto & device_state_manager = DeviceStateEventManager::GetInstance();
+    device_state_manager.RegisterStateChangeCallback(Motion::motion_on_state_change);
+
+    return ret;
 }
 
 void Motion::motionSend(enum motion_state state, struct motion_args *args)
@@ -173,4 +191,14 @@ void Motion::motionSend(enum motion_state state, struct motion_args *args)
     if (args != NULL)
         memcpy(&msg.args, args, sizeof(struct motion_args));
     xQueueSend(action_queue_, &msg, portMAX_DELAY);
+}
+
+void Motion::setMotorPwm(uint8_t duty)
+{
+    motor_pwm_.setDuty(duty);
+}
+
+void Motion::setMagPwm(uint8_t duty)
+{
+    mag_pwm_.setDuty(duty);
 }
