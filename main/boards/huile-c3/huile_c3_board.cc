@@ -96,15 +96,17 @@ private:
         });
 
         // 提起检测的限位开关处理
-        switch_button_.OnPressDown([this]() {
+        switch_button_.OnPressUp([this]() {
             lift_up_ = true;
-            std::string wake_word="大鹅被主人放下来了";
+            ESP_LOGI(TAG, "lift up");
+            std::string wake_word="大鹅被主人提起来了";
             Application::GetInstance().WakeWordInvoke(wake_word);
         });
 
-        switch_button_.OnPressUp([this]() {
+        switch_button_.OnPressDown([this]() {
             lift_up_ = false;
-            std::string wake_word="大鹅被主人提起来了";
+            ESP_LOGI(TAG, "put down");
+            std::string wake_word="大鹅被主人放下来了";
             Application::GetInstance().WakeWordInvoke(wake_word);
         });
     }
@@ -212,7 +214,7 @@ private:
 
 public:
     HuileC3Board() : touch_button_(TOUCH_BUTTON_GPIO),
-                     switch_button_(SWITCH_GPIO, true) {
+                     switch_button_(SWITCH_GPIO) {
         // 把 ESP32C3 的 VDD SPI 引脚作为普通 GPIO 口使用
         esp_efuse_write_field_bit(ESP_EFUSE_VDD_SPI_AS_GPIO);
 
