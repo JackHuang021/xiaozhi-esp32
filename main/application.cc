@@ -708,10 +708,10 @@ void Application::WakeWordInvoke(const std::string& wake_word) {
         Schedule([this]() {
             AbortSpeaking(kAbortReasonNone);
         });
-    } else if (device_state_ == kDeviceStateListening) {   
-        Schedule([this]() {
+    } else if (device_state_ == kDeviceStateListening) {
+        Schedule([this, wake_word]() {
             if (protocol_) {
-                protocol_->CloseAudioChannel();
+                protocol_->SendWakeWordDetected(wake_word);
             }
         });
     }

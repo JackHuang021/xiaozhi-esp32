@@ -107,6 +107,7 @@ private:
             lift_up_ = false;
             ESP_LOGI(TAG, "put down");
             std::string wake_word="大鹅被主人放下来了";
+            Motion::GetInstance().motionSend(STATE_IDLE, NULL);
             Application::GetInstance().WakeWordInvoke(wake_word);
         });
     }
@@ -196,7 +197,7 @@ private:
         });
 
         // 提起脖子
-        mcp_server.AddTool("self.huile.lift", "大鹅被主人提起脖子了，请循环哀求主人放它下来，直到被放下来", PropertyList(),
+        mcp_server.AddTool("self.huile.lift", "大鹅被主人提起脖子了，请循环哀求主人放它下来，然后退下", PropertyList(),
                 [this](const PropertyList& properties) -> ReturnValue {
             ESP_LOGI(TAG, "huile lifted");
             Motion::GetInstance().motionSend(STATE_LIFT, NULL);
@@ -204,10 +205,9 @@ private:
         });
 
         // 放下大鹅
-        mcp_server.AddTool("self.huile.put_down", "大鹅被主人放下了，说一句感谢主人的话", PropertyList(),
+        mcp_server.AddTool("self.huile.put_down", "大鹅被主人放下了，说一句感谢主人的话，然后退下", PropertyList(),
                 [this](const PropertyList& properties) -> ReturnValue {
             ESP_LOGI(TAG, "huile put down");
-            Motion::GetInstance().motionSend(STATE_IDLE, NULL);
             return true;
         });
     }

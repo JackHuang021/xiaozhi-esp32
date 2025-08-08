@@ -28,8 +28,7 @@ struct motion_entry {
 
 static void dance_timer_callback(void *args)
 {
-    Motion *motion = static_cast<Motion *>(args);
-    motion->setMotorPwm(0);
+    Motion::GetInstance().setMotorPwm(0);
 }
 
 void Motion::motion_dance(struct motion_args *args)
@@ -47,15 +46,15 @@ void Motion::motion_lift(motion_args *args)
 
 void Motion::motion_stop(motion_args *args)
 {
-    Motion::GetInstance().setMotorPwm(100);
+    Motion::GetInstance().setMotorPwm(0);
 }
 
 void Motion::motion_on_state_change(DeviceState previous, DeviceState current)
 {
-    if (current == kDeviceStateSpeaking)
-        Motion::GetInstance().setMagPwm(50);
-    else
-        Motion::GetInstance().setMagPwm(0);
+    // if (current == kDeviceStateSpeaking)
+    //     Motion::GetInstance().setMagPwm(20);
+    // else
+    //     Motion::GetInstance().setMagPwm(0);
 }
 
 struct motion_entry motion_table[STATE_MAX] = {
@@ -109,6 +108,7 @@ esp_err_t PWM::setDuty(uint8_t duty) {
     this->duty_to_percent_ = duty;
     this->duty_ = (1 << this->duty_resolution_) * duty / 100;
     ret = ledc_set_duty(this->speed_mode_, this->channel_, this->duty_);
+    ESP_LOGI(TAG, "set pwm duty %lu", this->duty_);
     ESP_RETURN_ON_ERROR(ret, TAG, "set duty failed");
     ret = ledc_update_duty(this->speed_mode_, this->channel_);
     ESP_RETURN_ON_ERROR(ret, TAG, "update duty failed");
@@ -170,7 +170,7 @@ esp_err_t Motion::motionInit() {
                               LEDC_LOW_SPEED_MODE, LEDC_CHANNEL_0,
                               0, MOTOR_PWM_GPIO);
     ESP_RETURN_ON_ERROR(ret, TAG, "failed to init motor pwm");
-    ret = mag_pwm_.setupPWM(LEDC_TIMER_1, 20, LEDC_TIMER_5_BIT,
+    ret = mag_pwm_.setupPWM(LEDC_TIMER_1, 10, LEDC_TIMER_13_BIT,
                             LEDC_LOW_SPEED_MODE, LEDC_CHANNEL_1,
                             0, MAG_PWM_GPIO);
     ESP_RETURN_ON_ERROR(ret, TAG, "failed to init mag pwm");
