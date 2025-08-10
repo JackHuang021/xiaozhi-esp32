@@ -51,7 +51,6 @@ private:
     QueueHandle_t action_queue_;
     enum motion_state state;
     PWM motor_pwm_;
-    PWM mag_pwm_;
     esp_timer_handle_t dance_timer_handle;
 
 public:
@@ -64,7 +63,7 @@ public:
     static void motion_dance(struct motion_args *args);
     static void motion_lift(motion_args *args);
     static void motion_stop(motion_args *args);
-    static void motion_on_state_change(DeviceState previous, DeviceState current);
+    static void mouth_action(uint32_t volume_envelope);
 
 private:
 
@@ -75,7 +74,6 @@ public:
     esp_err_t motionInit();
     void motionSend(enum motion_state state, struct motion_args *args);
     void setMotorPwm(uint8_t duty);
-    void setMagPwm(uint8_t duty);
 };
 
 struct motion_args {

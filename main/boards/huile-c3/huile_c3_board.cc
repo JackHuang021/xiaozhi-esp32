@@ -31,6 +31,7 @@ private:
     esp_lcd_panel_io_handle_t panel_io_ = nullptr;
     esp_lcd_panel_handle_t panel_ = nullptr;
     Display* display_ = nullptr;
+    AudioCodec* codec_ = nullptr;
     Button touch_button_;
     Button switch_button_;
     bool lift_up_ = false;
@@ -101,6 +102,7 @@ private:
             ESP_LOGI(TAG, "lift up");
             std::string wake_word="大鹅被主人提起来了";
             Application::GetInstance().WakeWordInvoke(wake_word);
+            Motion::GetInstance().motionSend(STATE_LIFT, NULL);
         });
 
         switch_button_.OnPressDown([this]() {
@@ -200,7 +202,6 @@ private:
         mcp_server.AddTool("self.huile.lift", "大鹅被主人提起脖子了，请循环哀求主人放它下来，然后退下", PropertyList(),
                 [this](const PropertyList& properties) -> ReturnValue {
             ESP_LOGI(TAG, "huile lifted");
-            Motion::GetInstance().motionSend(STATE_LIFT, NULL);
             return true;
         });
 
@@ -218,9 +219,12 @@ public:
         // 把 ESP32C3 的 VDD SPI 引脚作为普通 GPIO 口使用
         esp_efuse_write_field_bit(ESP_EFUSE_VDD_SPI_AS_GPIO);
 
-        display_ = new NoDisplay();
-
         InitializeCodecI2c();
+        codec_ = new Es8311AudioCodec(codec_i2c_bus_, I2C_NUM_0, AUDIO_INPUT_SAMPLE_RATE, AUDIO_OUTPUT_SAMPLE_RATE,
+            AUDIO_I2S_GPIO_MCLK, AUDIO_I2S_GPIO_BCLK, AUDIO_I2S_GPIO_WS, AUDIO_I2S_GPIO_DOUT, AUDIO_I2S_GPIO_DIN,
+            AUDIO_CODEC_PA_PIN, AUDIO_CODEC_ES8311_ADDR);
+        codec_->set_motion_callback(Motion::mouth_action);
+
         InitializeOledDisplay();
         InitializeButtons();
         InitializePowerSaveTimer();
@@ -238,10 +242,7 @@ public:
     }
 
     virtual AudioCodec* GetAudioCodec() override {
-        static Es8311AudioCodec audio_codec(codec_i2c_bus_, I2C_NUM_0, AUDIO_INPUT_SAMPLE_RATE, AUDIO_OUTPUT_SAMPLE_RATE,
-            AUDIO_I2S_GPIO_MCLK, AUDIO_I2S_GPIO_BCLK, AUDIO_I2S_GPIO_WS, AUDIO_I2S_GPIO_DOUT, AUDIO_I2S_GPIO_DIN,
-            AUDIO_CODEC_PA_PIN, AUDIO_CODEC_ES8311_ADDR);
-        return &audio_codec;
+        return codec_;
     }
 };
 

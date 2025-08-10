@@ -14,6 +14,7 @@
 #include "device_state_event.h"
 
 const static char *TAG = "huile_c3";
+const static uint32_t volume_envelope_threshold = 1500;
 
 struct motion_msg {
     motion_args args;
@@ -49,12 +50,12 @@ void Motion::motion_stop(motion_args *args)
     Motion::GetInstance().setMotorPwm(0);
 }
 
-void Motion::motion_on_state_change(DeviceState previous, DeviceState current)
+void Motion::mouth_action(uint32_t volume_envelope)
 {
-    // if (current == kDeviceStateSpeaking)
-    //     Motion::GetInstance().setMagPwm(20);
-    // else
-    //     Motion::GetInstance().setMagPwm(0);
+    if (volume_envelope >= volume_envelope_threshold)
+        gpio_set_level(MAG_PWM_GPIO, 1);
+    else
+        gpio_set_level(MAG_PWM_GPIO, 0);
 }
 
 struct motion_entry motion_table[STATE_MAX] = {
@@ -108,7 +109,6 @@ esp_err_t PWM::setDuty(uint8_t duty) {
     this->duty_to_percent_ = duty;
     this->duty_ = (1 << this->duty_resolution_) * duty / 100;
     ret = ledc_set_duty(this->speed_mode_, this->channel_, this->duty_);
-    ESP_LOGI(TAG, "set pwm duty %lu", this->duty_);
     ESP_RETURN_ON_ERROR(ret, TAG, "set duty failed");
     ret = ledc_update_duty(this->speed_mode_, this->channel_);
     ESP_RETURN_ON_ERROR(ret, TAG, "update duty failed");
@@ -170,15 +170,9 @@ esp_err_t Motion::motionInit() {
                               LEDC_LOW_SPEED_MODE, LEDC_CHANNEL_0,
                               0, MOTOR_PWM_GPIO);
     ESP_RETURN_ON_ERROR(ret, TAG, "failed to init motor pwm");
-    ret = mag_pwm_.setupPWM(LEDC_TIMER_1, 10, LEDC_TIMER_13_BIT,
-                            LEDC_LOW_SPEED_MODE, LEDC_CHANNEL_1,
-                            0, MAG_PWM_GPIO);
-    ESP_RETURN_ON_ERROR(ret, TAG, "failed to init mag pwm");
+    gpio_set_direction(MAG_PWM_GPIO, GPIO_MODE_OUTPUT);
 
     xTaskCreate(Motion::motion_task, "motion_task", 1024, NULL, 5, NULL);
-
-    auto & device_state_manager = DeviceStateEventManager::GetInstance();
-    device_state_manager.RegisterStateChangeCallback(Motion::motion_on_state_change);
 
     return ret;
 }
@@ -196,9 +190,4 @@ void Motion::motionSend(enum motion_state state, struct motion_args *args)
 void Motion::setMotorPwm(uint8_t duty)
 {
     motor_pwm_.setDuty(duty);
-}
-
-void Motion::setMagPwm(uint8_t duty)
-{
-    mag_pwm_.setDuty(duty);
 }

@@ -19,6 +19,8 @@ class AudioCodec {
 public:
     AudioCodec();
     virtual ~AudioCodec();
+
+    using AudioMotionCallback = std::function<void(uint32_t volume_envelope)>;
     
     virtual void SetOutputVolume(int volume);
     virtual void EnableInput(bool enable);
@@ -37,6 +39,11 @@ public:
     inline int output_volume() const { return output_volume_; }
     inline bool input_enabled() const { return input_enabled_; }
     inline bool output_enabled() const { return output_enabled_; }
+    uint32_t calcu_volume_envelope(std::vector<int16_t>& data);
+    uint32_t get_volume_envelope();
+    void set_motion_callback(AudioMotionCallback cb) {
+        motion_callback_ = cb;
+    }
 
 protected:
     i2s_chan_handle_t tx_handle_ = nullptr;
@@ -51,9 +58,13 @@ protected:
     int input_channels_ = 1;
     int output_channels_ = 1;
     int output_volume_ = 70;
+    uint32_t volume_envelope_ = 0;
+    uint32_t volume_envelope_threshold = 1200;
 
     virtual int Read(int16_t* dest, int samples) = 0;
     virtual int Write(const int16_t* data, int samples) = 0;
+
+    AudioMotionCallback motion_callback_ = nullptr;
 };
 
 #endif // _AUDIO_CODEC_H

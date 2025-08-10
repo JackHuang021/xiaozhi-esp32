@@ -4,7 +4,7 @@
 
 #define TAG "SingleLed"
 
-#define DEFAULT_BRIGHTNESS 4
+#define DEFAULT_BRIGHTNESS 200
 #define HIGH_BRIGHTNESS 16
 #define LOW_BRIGHTNESS 2
 
@@ -140,7 +140,7 @@ void SingleLed::OnStateChanged() {
             if (app.IsVoiceDetected()) {
                 SetColor(HIGH_BRIGHTNESS, 0, 0);
             } else {
-                SetColor(LOW_BRIGHTNESS, 0, 0);
+                SetColor(DEFAULT_BRIGHTNESS, 0, 0);
             }
             TurnOn();
             break;
