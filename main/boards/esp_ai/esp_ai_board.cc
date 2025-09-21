@@ -21,8 +21,11 @@ static const char *TAG = "esp_ai";
 
 class CustomAudioCodec : public BoxAudioCodec {
 
+private:
+    Pmic *pmic_;
+
 public:
-    CustomAudioCodec(i2c_master_bus_handle_t i2c_bus) 
+    CustomAudioCodec(i2c_master_bus_handle_t i2c_bus, Pmic *pmic) 
         : BoxAudioCodec(i2c_bus,
                        AUDIO_INPUT_SAMPLE_RATE,
                        AUDIO_OUTPUT_SAMPLE_RATE,
@@ -35,15 +38,12 @@ public:
                        AUDIO_CODEC_ES8311_ADDR, 
                        AUDIO_CODEC_ES7210_ADDR, 
                        true) {
+        pmic_ = pmic;
     }
 
     virtual void EnableOutput(bool enable) override {
         BoxAudioCodec::EnableOutput(enable);
-        // if (enable) {
-        //     pca9557_->SetOutputState(1, 1);
-        // } else {
-        //     pca9557_->SetOutputState(1, 0);
-        // }
+        pmic_->set_pa_enable(enable);
     }
 };
 
@@ -77,7 +77,6 @@ private:
         ESP_LOGI(TAG, "Init AXP2101");
         pmic_ = new Pmic(i2c_bus_, 0x34);
         pmic_->set_lcd_cs(true);
-        pmic_->set_lcd_backlight(50);
         vTaskDelay(pdMS_TO_TICKS(300));
     }
 
@@ -219,6 +218,11 @@ private:
         // camera_ = new Esp32Camera(config);
     }
 
+    void set_pa_enable(bool enable)
+    {
+        pmic_->set_pa_enable(enable);
+    }
+
 public:
     ESPAIBoard() : boot_button_(BOOT_BUTTON_GPIO) {
         InitializeI2c();
@@ -234,14 +238,14 @@ public:
 
     virtual AudioCodec* GetAudioCodec() override {
         static CustomAudioCodec audio_codec(
-            i2c_bus_);
+            i2c_bus_, pmic_);
         return &audio_codec;
     }
 
     virtual Display* GetDisplay() override {
         return display_;
     }
-    
+
     virtual Backlight* GetBacklight() override {
         static PmicBacklight backlight(pmic_);
         return &backlight;
