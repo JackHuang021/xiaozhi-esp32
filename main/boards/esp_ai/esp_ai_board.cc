@@ -7,6 +7,7 @@
 #include "i2c_device.h"
 #include "esp32_camera.h"
 #include "pmic.h"
+#include "power_save_timer.h"
 
 #include <esp_log.h>
 #include <esp_lcd_panel_vendor.h>
@@ -16,6 +17,7 @@
 #include <esp_lcd_touch_ft5x06.h>
 #include <esp_lvgl_port.h>
 #include <lvgl.h>
+#include <esp_sleep.h>
 
 static const char *TAG = "esp_ai";
 
@@ -48,13 +50,19 @@ public:
 };
 
 class ESPAIBoard : public WifiBoard {
+
+private:
+    static const int k_seconds_to_sleep = 60;
+    static const int k_seconds_to_shutdown = 300;
+
 private:
     i2c_master_bus_handle_t i2c_bus_;
     // i2c_master_dev_handle_t pca9557_handle_;
     Button boot_button_;
-    LcdDisplay* display_;
-    Esp32Camera* camera_;
+    LcdDisplay* display_ = nullptr;
+    Esp32Camera* camera_ = nullptr;
     Pmic* pmic_ = nullptr;
+    PowerSaveTimer* power_saver_timer_ = nullptr;
 
     void InitializeI2c() {
         // Initialize I2C peripheral
@@ -93,6 +101,7 @@ private:
 
     void InitializeButtons() {
         boot_button_.OnClick([this]() {
+            power_saver_timer_->WakeUp();
             auto& app = Application::GetInstance();
             if (app.GetDeviceState() == kDeviceStateStarting && !WifiStation::GetInstance().IsConnected()) {
                 ResetWifiConfiguration();
@@ -218,6 +227,30 @@ private:
         // camera_ = new Esp32Camera(config);
     }
 
+    void InitializePowerSaveTimer() {
+        power_saver_timer_ = new PowerSaveTimer(-1, k_seconds_to_sleep,
+                                    k_seconds_to_shutdown);
+
+        power_saver_timer_->OnEnterSleepMode([this]() {
+            GetDisplay()->SetPowerSaveMode(true);
+            GetBacklight()->SetBrightness(0);
+            /* turn off PA */
+        });
+
+        power_saver_timer_->OnExitSleepMode([this]() {
+            GetDisplay()->SetPowerSaveMode(false);
+            GetBacklight()->RestoreBrightness();
+        });
+
+        power_saver_timer_->OnShutdownRequest([this]() {
+            ESP_LOGI(TAG, "Shutting down");
+            // 启用保持功能，确保睡眠期间电平不变
+            pmic_->PowerOff();
+        });
+
+        power_saver_timer_->SetEnabled(true);
+    }
+
     void set_pa_enable(bool enable)
     {
         pmic_->set_pa_enable(enable);
@@ -234,6 +267,7 @@ public:
         // InitializeCamera();
 
         GetBacklight()->RestoreBrightness();
+        InitializePowerSaveTimer();
     }
 
     virtual AudioCodec* GetAudioCodec() override {
