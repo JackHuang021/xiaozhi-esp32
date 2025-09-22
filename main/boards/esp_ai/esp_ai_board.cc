@@ -8,6 +8,7 @@
 #include "esp32_camera.h"
 #include "pmic.h"
 #include "power_save_timer.h"
+#include "sdcard.h"
 
 #include <esp_log.h>
 #include <esp_lcd_panel_vendor.h>
@@ -63,6 +64,7 @@ private:
     Esp32Camera* camera_ = nullptr;
     Pmic* pmic_ = nullptr;
     PowerSaveTimer* power_saver_timer_ = nullptr;
+    Sdcard *sdcard_ = nullptr;
 
     void InitializeI2c() {
         // Initialize I2C peripheral
@@ -227,6 +229,16 @@ private:
         // camera_ = new Esp32Camera(config);
     }
 
+    void InitializeSDcard() {
+        sdcard_ = new Sdcard(SDCARD_CMD_PIN,
+                             SDCARD_CLK_PIN,
+                             SDCARD_D0_PIN,
+                             SDCARD_D1_PIN,
+                             SDCARD_D2_PIN,
+                             SDCARD_D3_PIN,
+                             GPIO_NUM_NC);
+    }
+
     void InitializePowerSaveTimer() {
         power_saver_timer_ = new PowerSaveTimer(-1, k_seconds_to_sleep,
                                     k_seconds_to_shutdown);
@@ -234,7 +246,6 @@ private:
         power_saver_timer_->OnEnterSleepMode([this]() {
             GetDisplay()->SetPowerSaveMode(true);
             GetBacklight()->SetBrightness(0);
-            /* turn off PA */
         });
 
         power_saver_timer_->OnExitSleepMode([this]() {
@@ -244,7 +255,6 @@ private:
 
         power_saver_timer_->OnShutdownRequest([this]() {
             ESP_LOGI(TAG, "Shutting down");
-            // 启用保持功能，确保睡眠期间电平不变
             pmic_->PowerOff();
         });
 
@@ -264,6 +274,7 @@ public:
         InitializeSt7789Display();
         InitializeTouch();
         InitializeButtons();
+        InitializeSDcard();
         // InitializeCamera();
 
         GetBacklight()->RestoreBrightness();

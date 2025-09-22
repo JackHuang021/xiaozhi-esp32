@@ -55,6 +55,13 @@
 #define CAMERA_PIN_HREF 46
 #define CAMERA_PIN_PCLK 7
 
+#define SDCARD_CMD_PIN      GPIO_NUM_47
+#define SDCARD_CLK_PIN      GPIO_NUM_21
+#define SDCARD_D0_PIN       GPIO_NUM_14
+#define SDCARD_D1_PIN       GPIO_NUM_13
+#define SDCARD_D2_PIN       GPIO_NUM_45
+#define SDCARD_D3_PIN       GPIO_NUM_48
+
 #define XCLK_FREQ_HZ 24000000
 
 
