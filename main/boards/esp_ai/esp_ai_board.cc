@@ -240,7 +240,7 @@ private:
     }
 
     void InitializePowerSaveTimer() {
-        power_saver_timer_ = new PowerSaveTimer(-1, k_seconds_to_sleep,
+        power_saver_timer_ = new PowerSaveTimer(240, k_seconds_to_sleep,
                                     k_seconds_to_shutdown);
 
         power_saver_timer_->OnEnterSleepMode([this]() {
