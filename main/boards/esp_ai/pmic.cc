@@ -45,15 +45,15 @@ Pmic::Pmic(i2c_master_bus_handle_t i2c_bus, uint8_t addr) : Axp2101(i2c_bus, add
     /* turn on ALDO1(AVDD) & Set LCD_CS High & PA_EN */
     WriteReg(0x90, 0xA1);
 
-    /* CV charger voltage setting to 4.1V */
-    WriteReg(0x64, 0x02);
+    /* CV charger voltage setting to 4.2V */
+    WriteReg(0x64, 0x03);
 
-    /* set Main battery precharge current to 50mA */
-    WriteReg(0x61, 0x02);
-    /* set Main battery charger current to 400mA ( 0x08-200mA, 0x09-300mA, 0x0A-400mA ) */
-    WriteReg(0x62, 0x08);
-    /* set Main battery term charge current to 25mA */
-    WriteReg(0x63, 0x01);
+    /* set Main battery precharge current to 200mA */
+    WriteReg(0x61, 0x08);
+    /* set Main battery charger current to 1000mA */
+    WriteReg(0x62, 0x10);
+    /* set Main battery term charge current to 100mA */
+    WriteReg(0x63, 0x04);
 }
 
 /**
