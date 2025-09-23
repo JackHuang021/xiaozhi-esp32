@@ -247,6 +247,10 @@ void Sdcard::Read(const char *filename, char *buffer, size_t buffer_size)
     fclose(file);
 }
 
+/**
+ * @brief 
+ * 
+ */
 void Sdcard::SpeedTest()
 {
     const size_t test_size = 512 * 1024;

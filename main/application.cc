@@ -9,6 +9,7 @@
 #include "mcp_server.h"
 #include "assets.h"
 #include "settings.h"
+#include "player.h"
 
 #include <cstring>
 #include <esp_log.h>
@@ -359,6 +360,10 @@ void Application::Start() {
     auto codec = board.GetAudioCodec();
     audio_service_.Initialize(codec);
     audio_service_.Start();
+
+    /* Setup Music Player */
+    auto& music_player = AudioPlayer::GetInstance();
+    music_player.Initialize("/sdcard/musics");
 
     AudioServiceCallbacks callbacks;
     callbacks.on_send_queue_available = [this]() {
