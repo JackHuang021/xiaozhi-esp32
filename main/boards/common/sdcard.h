@@ -1,10 +1,12 @@
 /**
- * @file Sdcard.h
- * @brief 该头文件定义了 Sdcard 类，用于管理 SD 卡的操作，
- * 包括初始化、挂载、卸载、写入和读取文件等功能，同时支持检测 SD 卡是否插入。
- *
- * @author 施华锋
- * @date 2025-2-18
+ * @file sdcard.h
+ * @author your name (you@domain.com)
+ * @brief 
+ * @version 0.1
+ * @date 2025-09-22
+ * 
+ * @copyright Copyright (c) 2025
+ * 
  */
 
 #ifndef SDCARD_H
@@ -128,6 +130,8 @@ public:
      * @param buffer_size 缓冲区的大小。
      */
     void Read(const char *filename, char *buffer, size_t buffer_size);
+
+    static void SpeedTest();
 };
 
 #endif // SDCARD_H

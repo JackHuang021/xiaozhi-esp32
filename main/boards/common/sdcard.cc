@@ -1,4 +1,18 @@
+/**
+ * @file sdcard.copydoc link-object
+ * @author your name (you@domain.com)
+ * @brief 
+ * @version 0.1
+ * @date 2025-09-22
+ * 
+ * @copyright Copyright (c) 2025
+ * 
+ */
+
 #include "sdcard.h"
+#include <string.h>
+#include <fcntl.h>
+#include <unistd.h>
 
 // 定义日志标签，方便打印与该类相关的日志信息
 static const char *TAG = "Sdcard";
@@ -27,7 +41,7 @@ Sdcard::Sdcard(gpio_num_t cmd, gpio_num_t clk, gpio_num_t d0, gpio_num_t d1, gpi
     sdmmc_host_t host = SDMMC_HOST_DEFAULT();
 
     // 提高 SD 卡频率，可根据实际情况调整
-    host.max_freq_khz = SDMMC_FREQ_PROBING;
+    host.max_freq_khz = SDMMC_FREQ_HIGHSPEED;
 
     // 配置 SD 卡插槽，使用默认配置
     sdmmc_slot_config_t slot_config = SDMMC_SLOT_CONFIG_DEFAULT();
@@ -231,4 +245,65 @@ void Sdcard::Read(const char *filename, char *buffer, size_t buffer_size)
 
     // 关闭文件
     fclose(file);
+}
+
+void Sdcard::SpeedTest()
+{
+    const size_t test_size = 512 * 1024;
+    ESP_LOGI(TAG, "creating a file");
+    int fd =  open("/sdcard/test", O_WRONLY | O_CREAT | O_TRUNC, S_IRUSR | S_IWUSR);
+    if (fd < 0) {
+        ESP_LOGE(TAG, "failed to open file");
+        return;
+    }
+
+    ESP_LOGI(TAG, "writing to the file");
+    char *data = (char *)heap_caps_malloc(test_size, MALLOC_CAP_SPIRAM);
+    if (!data) {
+        ESP_LOGE(TAG, "failed to malloc memory");
+        return;
+    }
+    memset(data, 'A', test_size);
+
+    ESP_LOGI(TAG, "string write speed test...");
+    struct timeval start, end;
+    gettimeofday(&start, NULL);
+    ssize_t written = write(fd, data, test_size);
+    gettimeofday(&end, NULL);
+
+    if (written == test_size) {
+        long seconds = end.tv_sec - start.tv_sec;
+        long microseconds = end.tv_usec - start.tv_usec;
+        double write_speed = (double)test_size / (seconds + microseconds / 1000000.0) / 1024 / 1024;
+        ESP_LOGI(TAG, "write speed: %.2f MB/s", write_speed);
+    } else {
+        ESP_LOGE(TAG, "failed to write complete data");
+    }
+
+    close(fd);
+
+    // Measure read speed
+    fd = open("/sdcard/test", O_RDONLY);
+    if (fd == -1) {
+        ESP_LOGE(TAG, "failed to open file for reading");
+        return;
+    }
+
+    ESP_LOGI(TAG, "starting read speed test...");
+    gettimeofday(&start, NULL);
+
+    ssize_t read_bytes = read(fd, data, test_size);
+    gettimeofday(&end, NULL);
+
+    if (read_bytes == test_size) {
+        long seconds = end.tv_sec - start.tv_sec;
+        long microseconds = end.tv_usec - start.tv_usec;
+        double read_speed = (double)test_size / (seconds + microseconds / 1000000.0) / 1024 / 1024;
+        ESP_LOGI(TAG, "read speed: %.2f MB/s", read_speed);
+    } else {
+        ESP_LOGE(TAG, "failed to read complete data");
+    }
+
+    close(fd);
+    free(data);
 }
