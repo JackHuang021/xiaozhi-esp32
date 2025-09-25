@@ -10,6 +10,7 @@
  */
 
 #include <string.h>
+#include <sys/stat.h>
 #include "player.h"
 #include "esp_log.h"
 #include "esp_log_level.h"
@@ -57,6 +58,9 @@ AudioPlayer::AudioPlayer()
 void AudioPlayer::Initialize(const char *dir)
 {
     music_dir_ = dir;
+    /* create music directory if is not exist */
+    mkdir(music_dir_, 0777);
+
     file_iterator_ = file_iterator_new(music_dir_);
     player_config_.mute_fn = AudioPlayer::mute_fn;
     player_config_.write_fn = AudioPlayer::write_fn;
