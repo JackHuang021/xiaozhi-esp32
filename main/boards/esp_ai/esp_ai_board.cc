@@ -299,6 +299,14 @@ public:
     // virtual Camera* GetCamera() override {
     //     return camera_;
     // }
+
+    bool GetBatteryLevel(int &level, bool& charging, bool& discharging)
+    {
+        level = pmic_->GetBatteryLevel();
+        charging = pmic_->IsCharging();
+        discharging = pmic_->IsDischarging();
+        return true;
+    }
 };
 
 DECLARE_BOARD(ESPAIBoard);
