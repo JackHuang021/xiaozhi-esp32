@@ -18,6 +18,8 @@
  * @param addr 
  */
 Pmic::Pmic(i2c_master_bus_handle_t i2c_bus, uint8_t addr) : Axp2101(i2c_bus, addr) {
+    uint8_t value = 0;
+
     WriteReg(0x22, 0b110); // PWRON > OFFLEVEL as POWEROFF Source enable
     WriteReg(0x27, 0x10);  // hold 4s to power off
 
@@ -26,6 +28,11 @@ Pmic::Pmic(i2c_master_bus_handle_t i2c_bus, uint8_t addr) : Axp2101(i2c_bus, add
     /* Disable All LDOs */
     WriteReg(0x90, 0x00);
     WriteReg(0x91, 0x00);
+
+    /* disable TS pin measure */
+    value = ReadReg(0x30);
+    value &= ~BIT(1);
+    WriteReg(0x30, value);
 
     /* Set DC1 to 3.3V */
     WriteReg(0x82, (3300 - 1500) / 100);
