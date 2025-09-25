@@ -67,6 +67,11 @@ Led* Board::GetLed() {
     return &led;
 }
 
+Battery *Board::GetBattery()
+{
+    return nullptr;
+}
+
 std::string Board::GetSystemInfoJson() {
     /* 
         {

@@ -10,8 +10,10 @@
 
 #include "led/led.h"
 #include "backlight.h"
+#include "battery.h"
 #include "camera.h"
 #include "assets.h"
+
 
 
 void* create_board();
@@ -40,6 +42,7 @@ public:
     virtual std::string GetUuid() { return uuid_; }
     virtual Backlight* GetBacklight() { return nullptr; }
     virtual Led* GetLed();
+    virtual Battery* GetBattery();
     virtual AudioCodec* GetAudioCodec() = 0;
     virtual bool GetTemperature(float& esp32temp);
     virtual Display* GetDisplay();
