@@ -23,6 +23,7 @@ public:
     virtual void SetOutputVolume(int volume);
     virtual void EnableInput(bool enable);
     virtual void EnableOutput(bool enable);
+    virtual bool SetOutputSampleRate(int sample_rate);
 
     virtual void OutputData(std::vector<int16_t>& data);
     virtual bool InputData(std::vector<int16_t>& data);
@@ -51,6 +52,7 @@ protected:
     int input_channels_ = 1;
     int output_channels_ = 1;
     int output_volume_ = 70;
+    int original_output_sample_rate_ = 0;
 
     virtual int Read(int16_t* dest, int samples) = 0;
     virtual int Write(const int16_t* data, int samples) = 0;

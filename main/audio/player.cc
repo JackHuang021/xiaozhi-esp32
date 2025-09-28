@@ -9,22 +9,21 @@
  * 
  */
 
-#include <string.h>
+#include <cstring>
 #include <sys/stat.h>
+#include <vector>
 #include "player.h"
 #include "esp_log.h"
 #include "esp_log_level.h"
 #include "mcp_server.h"
+
 
 static const char *TAG = "player";
 
 esp_err_t(AudioPlayer::mute_fn)(AUDIO_PLAYER_MUTE_SETTING setting)
 {
     esp_err_t ret = ESP_OK;
-    // AudioCodec *codec = Board::GetInstance().GetAudioCodec();
-
-    // codec->EnableOutput(setting == AUDIO_PLAYER_MUTE ? true : false);
-
+    ESP_LOGI(TAG, "mute fn callback %d", setting);
     return ret;
 }
 
@@ -32,15 +31,25 @@ esp_err_t(AudioPlayer::clk_set_fn)(uint32_t rate, uint32_t bits_cfg, i2s_slot_mo
 {
     esp_err_t ret = ESP_OK;
 
+    auto codec = Board::GetInstance().GetAudioCodec();
+
+    // check & set sample rate
+    if (rate != codec->output_sample_rate()) {
+        codec->SetOutputSampleRate(rate);
+    }
+
     return ret;
 }
 
 esp_err_t(AudioPlayer::write_fn)(void *audio_buffer, size_t len, size_t *bytes_written, uint32_t timeout_ms)
 {
     esp_err_t ret = ESP_OK;
-    // int written = 0;
 
-    // auto *codec = Board::GetInstance().GetAudioCodec();
+    int16_t* ptr = static_cast<int16_t*>(audio_buffer);
+    std::vector<int16_t> data(ptr, ptr + len);
+    auto *codec = Board::GetInstance().GetAudioCodec();
+    codec->OutputData(data);
+    *bytes_written = len;
 
     return ret;
 }
@@ -48,6 +57,30 @@ esp_err_t(AudioPlayer::write_fn)(void *audio_buffer, size_t len, size_t *bytes_w
 void AudioPlayer::audio_player_cb(audio_player_cb_ctx_t *ctx)
 {
     ESP_LOGI(TAG, "ctx->audio_event = %d", ctx->audio_event);
+
+    switch (ctx->audio_event) {
+    case AUDIO_PLAYER_CALLBACK_EVENT_IDLE:
+        ESP_LOGI(TAG, "AUDIO_PLAYER_CALLBACK_EVENT_IDLE");
+        break;
+    case AUDIO_PLAYER_CALLBACK_EVENT_COMPLETED_PLAYING_NEXT:
+        ESP_LOGI(TAG, "AUDIO_PLAYER_CALLBACK_EVENT_COMPLETED_PLAYING_NEXT");
+        break;
+    case AUDIO_PLAYER_CALLBACK_EVENT_PLAYING:
+        ESP_LOGI(TAG, "AUDIO_PLAYER_CALLBACK_EVENT_PLAYING");
+        break;
+    case AUDIO_PLAYER_CALLBACK_EVENT_PAUSE:
+        ESP_LOGI(TAG, "AUDIO_PLAYER_CALLBACK_EVENT_PAUSE");
+        break;
+    case AUDIO_PLAYER_CALLBACK_EVENT_SHUTDOWN:
+        ESP_LOGI(TAG, "AUDIO_PLAYER_CALLBACK_EVENT_SHUTDOWN");
+        break;
+    case AUDIO_PLAYER_CALLBACK_EVENT_UNKNOWN_FILE_TYPE:
+        ESP_LOGI(TAG, "AUDIO_PLAYER_CALLBACK_EVENT_UNKNOWN_FILE_TYPE");
+        break;
+    default:
+        ESP_LOGI(TAG, "unknow player event");
+        break;
+    }
 }
 
 AudioPlayer::AudioPlayer()
@@ -98,6 +131,8 @@ esp_err_t AudioPlayer::playMusic(const std::string &musicName)
     int music_nums = file_iterator_get_count(file_iterator_);
     const char* music_name_cstr = musicName.c_str();
     const char *filename = nullptr;
+    char fullpath[256];
+    FILE *fp = nullptr;
 
     for (i = 0; i < music_nums; i++) {
         filename = file_iterator_get_name_from_index(file_iterator_, i);
@@ -114,5 +149,15 @@ esp_err_t AudioPlayer::playMusic(const std::string &musicName)
     }
 
     // 切换为空闲状态，准备播放音乐
+    file_iterator_get_full_path_from_index(file_iterator_, i, fullpath, 256);
+    fp = fopen(fullpath, "rb");
+    if (!fp) {
+        ESP_LOGE(TAG, "failed to open music file %s", fullpath);
+        ret = ESP_FAIL;
+    } else {
+        ESP_LOGI(TAG, "playing %s", filename);
+        audio_player_play(fp);
+    }
+
     return ret;
 }
