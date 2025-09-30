@@ -469,11 +469,14 @@ void LcdDisplay::SetupUI() {
 #define  MAX_MESSAGES 20
 #endif
 void LcdDisplay::SetChatMessage(const char* role, const char* content) {
+
+    /* 将消息存储到文件系统 */
+
     DisplayLockGuard lock(this);
     if (content_ == nullptr) {
         return;
     }
-    
+
     // 检查消息数量是否超过限制
     uint32_t child_count = lv_obj_get_child_cnt(content_);
     if (child_count >= MAX_MESSAGES) {
@@ -488,7 +491,7 @@ void LcdDisplay::SetChatMessage(const char* role, const char* content) {
             lv_obj_scroll_to_view_recursive(last_child, LV_ANIM_OFF);
         }
     }
-    
+
     // 折叠系统消息（如果是系统消息，检查最后一个消息是否也是系统消息）
     if (strcmp(role, "system") == 0) {
         if (child_count > 0) {
