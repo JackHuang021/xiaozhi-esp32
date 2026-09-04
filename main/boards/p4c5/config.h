@@ -52,6 +52,16 @@
 #define TOUCH_I2C_SCL_PIN GPIO_NUM_29
 #define TOUCH_INT_PIN     GPIO_NUM_27
 
+// SD card: SDMMC 4-line on the P4 SDIO1 dedicated pins. These equal the IDF
+// per-chip iomux defaults (SDMMC_SLOT_CONFIG_DEFAULT for ESP32-P4), and are
+// spelled out here to keep the wiring explicit (same as the sila-p4c5 ref).
+#define SDMMC_CLK_PIN GPIO_NUM_43
+#define SDMMC_CMD_PIN GPIO_NUM_44
+#define SDMMC_D0_PIN  GPIO_NUM_39
+#define SDMMC_D1_PIN  GPIO_NUM_40
+#define SDMMC_D2_PIN  GPIO_NUM_41
+#define SDMMC_D3_PIN  GPIO_NUM_42
+
 #define SD_CARD_MOUNT_POINT "/sdcard"
 #define SD_CARD_PWR_LDO_CHAN 4
 

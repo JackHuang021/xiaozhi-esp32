@@ -23,6 +23,7 @@
 #include <freertos/FreeRTOS.h>
 #include <freertos/task.h>
 #include <sdmmc_cmd.h>
+#include <stdio.h>
 
 #include "esp_lcd_axs15260.h"
 #include "esp_lcd_touch_axs15260.h"
@@ -300,44 +301,65 @@ private:
         }
     }
 
-    // void InitializeSdCard() {
-    //     ESP_LOGI(TAG, "Initializing SD card");
+    void InitializeSdCard() {
+        ESP_LOGI(TAG, "Initializing SD card");
 
-    //     sdmmc_host_t host = SDMMC_HOST_DEFAULT();
-    //     host.slot = SDMMC_HOST_SLOT_0;
-    //     host.max_freq_khz = SDMMC_FREQ_HIGHSPEED;
+        sdmmc_host_t host = SDMMC_HOST_DEFAULT();
+        host.slot = SDMMC_HOST_SLOT_0;
+        host.max_freq_khz = SDMMC_FREQ_HIGHSPEED;  // 40MHz; falls back on negotiation
+        // Keep the driver-default per-command timeout (1s): the card is powered
+        // through the on-chip LDO here, and when no card / a broken card is
+        // present each command waits for its timeout. A generous per-command
+        // timeout (sila-p4c5 used 5000ms) would stall a card-less boot for tens
+        // of seconds, so we accept the 1s default instead.
 
-    //     sdmmc_slot_config_t slot = {};
-    //     slot.cd = SDMMC_SLOT_NO_CD;
-    //     slot.wp = SDMMC_SLOT_NO_WP;
-    //     slot.width = 4;
+        // Force 4-line mode from the start: SDMMC_HOST_DEFAULT also advertises
+        // the 1-bit fallback, which would let init drop to 1-line mode after the
+        // width switch. Keep only the 4-bit capability (same as sila-p4c5 ref).
+        host.flags |= SDMMC_HOST_FLAG_4BIT;
+        host.flags &= ~SDMMC_HOST_FLAG_1BIT;
 
-    //     const esp_vfs_fat_sdmmc_mount_config_t mount_config = {
-    //         .format_if_mount_failed = false,
-    //         .max_files = 5,
-    //         .allocation_unit_size = 64 * 1024,
-    //     };
+        // Slot on the P4 SDIO1 dedicated pins (see config.h). Pins are written
+        // out explicitly even though they match the per-chip iomux defaults.
+        sdmmc_slot_config_t slot = SDMMC_SLOT_CONFIG_DEFAULT();
+        slot.width = 4;
+        slot.clk = SDMMC_CLK_PIN;
+        slot.cmd = SDMMC_CMD_PIN;
+        slot.d0 = SDMMC_D0_PIN;
+        slot.d1 = SDMMC_D1_PIN;
+        slot.d2 = SDMMC_D2_PIN;
+        slot.d3 = SDMMC_D3_PIN;
+        // Enable internal pull-ups on CMD/D0-D3. Without this (or external
+        // pull-ups on the slot) the lines float and card init times out.
+        slot.flags |= SDMMC_SLOT_FLAG_INTERNAL_PULLUP;
 
-    //     sd_pwr_ctrl_ldo_config_t power_config = {
-    //         .ldo_chan_id = SD_CARD_PWR_LDO_CHAN,
-    //     };
-    //     esp_err_t ret = sd_pwr_ctrl_new_on_chip_ldo(&power_config, &sd_power_);
-    //     if (ret != ESP_OK) {
-    //         ESP_LOGE(TAG, "Failed to enable SD card power: %s", esp_err_to_name(ret));
-    //         return;
-    //     }
-    //     host.pwr_ctrl_handle = sd_power_;
+        const esp_vfs_fat_sdmmc_mount_config_t mount_config = {
+            .format_if_mount_failed = false,
+            .max_files = 5,
+            .allocation_unit_size = 64 * 1024,
+        };
 
-    //     ret = esp_vfs_fat_sdmmc_mount(SD_CARD_MOUNT_POINT, &host, &slot, &mount_config, &sd_card_);
-    //     if (ret != ESP_OK) {
-    //         ESP_LOGE(TAG, "Failed to mount SD card: %s", esp_err_to_name(ret));
-    //         sd_pwr_ctrl_del_on_chip_ldo(sd_power_);
-    //         sd_power_ = nullptr;
-    //     } else {
-    //         sd_card_mounted_ = true;
-    //         ESP_LOGI(TAG, "SD card mounted successfully");
-    //     }
-    // }
+        sd_pwr_ctrl_ldo_config_t power_config = {
+            .ldo_chan_id = SD_CARD_PWR_LDO_CHAN,
+        };
+        esp_err_t ret = sd_pwr_ctrl_new_on_chip_ldo(&power_config, &sd_power_);
+        if (ret != ESP_OK) {
+            ESP_LOGE(TAG, "Failed to enable SD card power: %s", esp_err_to_name(ret));
+            return;
+        }
+        host.pwr_ctrl_handle = sd_power_;
+
+        ret = esp_vfs_fat_sdmmc_mount(SD_CARD_MOUNT_POINT, &host, &slot, &mount_config, &sd_card_);
+        if (ret != ESP_OK) {
+            ESP_LOGE(TAG, "Failed to mount SD card: %s", esp_err_to_name(ret));
+            sd_pwr_ctrl_del_on_chip_ldo(sd_power_);
+            sd_power_ = nullptr;
+        } else {
+            sd_card_mounted_ = true;
+            sdmmc_card_print_info(stdout, sd_card_);
+            ESP_LOGI(TAG, "SD card mounted successfully");
+        }
+    }
 
     // void InitializeCamera() {
     //     ESP_LOGI(TAG, "Initializing camera");
@@ -383,7 +405,7 @@ public:
         InitializeI2cBus();
         InitializeButtons();
         InitializeTouch();
-        // InitializeSdCard();
+        InitializeSdCard();
         // InitializeCamera();
         // InitializeFonts();
         GetBacklight()->RestoreBrightness();
@@ -393,18 +415,18 @@ public:
         // delete camera_;
         // camera_ = nullptr;
 
-        // if (sd_card_mounted_) {
-        //     esp_err_t ret = esp_vfs_fat_sdcard_unmount(SD_CARD_MOUNT_POINT, sd_card_);
-        //     if (ret != ESP_OK) {
-        //         ESP_LOGE(TAG, "Failed to unmount SD card: %s", esp_err_to_name(ret));
-        //     }
-        //     sd_card_mounted_ = false;
-        //     sd_card_ = nullptr;
-        // }
-        // if (sd_power_ != nullptr) {
-        //     sd_pwr_ctrl_del_on_chip_ldo(sd_power_);
-        //     sd_power_ = nullptr;
-        // }
+        if (sd_card_mounted_) {
+            esp_err_t ret = esp_vfs_fat_sdcard_unmount(SD_CARD_MOUNT_POINT, sd_card_);
+            if (ret != ESP_OK) {
+                ESP_LOGE(TAG, "Failed to unmount SD card: %s", esp_err_to_name(ret));
+            }
+            sd_card_mounted_ = false;
+            sd_card_ = nullptr;
+        }
+        if (sd_power_ != nullptr) {
+            sd_pwr_ctrl_del_on_chip_ldo(sd_power_);
+            sd_power_ = nullptr;
+        }
 
         // Stop the driver's touch task (touch_del also removes the ISR) before
         // deleting the indev, so no data callback can reference a freed indev
