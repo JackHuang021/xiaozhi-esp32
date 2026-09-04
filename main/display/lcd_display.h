@@ -77,7 +77,8 @@ class MipiLcdDisplay : public LcdDisplay {
 public:
     MipiLcdDisplay(esp_lcd_panel_io_handle_t panel_io, esp_lcd_panel_handle_t panel, int width,
                    int height, int offset_x, int offset_y, bool mirror_x, bool mirror_y,
-                   bool swap_xy);
+                   bool swap_xy, lv_color_format_t color_format = LV_COLOR_FORMAT_RGB565,
+                   uint32_t buffer_size_px = 0, bool double_buffer = false);
 };
 
 #endif  // LCD_DISPLAY_H

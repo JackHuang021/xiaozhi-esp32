@@ -556,6 +556,8 @@ elseif(CONFIG_BOARD_TYPE_WAVESHARE_ESP32_P4_WIFI6_TOUCH_LCD_10_1)
     set(DEFAULT_EMOJI_COLLECTION noto-color-emoji_64)
 elseif(CONFIG_BOARD_TYPE_ESP32_P4_FUNCTION_EV_BOARD)
     set(BOARD_DIR "espressif/esp32-p4-function-ev-board")
+elseif(CONFIG_BOARD_TYPE_ESP32P4_C5)
+    set(BOARD_DIR "p4c5")
 elseif(CONFIG_BOARD_TYPE_ESP32_S31_FUNCTION_COREBOARD_1)
     set(BOARD_DIR "espressif/esp32-s31-function-coreboard-1")
 elseif(CONFIG_BOARD_TYPE_ESP32_S31_KORVO_1)
@@ -1055,6 +1057,12 @@ if(CONFIG_BOARD_TYPE_ESP_VOCAT AND IDF_VERSION_MAJOR LESS 6)
     )
 endif()
 if(CONFIG_BOARD_TYPE_ESP32_P4_FUNCTION_EV_BOARD)
+    list(APPEND MAIN_PRIV_REQUIRES_EXTRA
+        esp_driver_sdmmc
+        sdmmc
+    )
+endif()
+if(CONFIG_BOARD_TYPE_ESP32P4_C5)
     list(APPEND MAIN_PRIV_REQUIRES_EXTRA
         esp_driver_sdmmc
         sdmmc

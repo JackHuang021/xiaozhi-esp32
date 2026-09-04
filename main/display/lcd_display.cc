@@ -241,7 +241,8 @@ RgbLcdDisplay::RgbLcdDisplay(esp_lcd_panel_io_handle_t panel_io, esp_lcd_panel_h
 
 MipiLcdDisplay::MipiLcdDisplay(esp_lcd_panel_io_handle_t panel_io, esp_lcd_panel_handle_t panel,
                                int width, int height, int offset_x, int offset_y, bool mirror_x,
-                               bool mirror_y, bool swap_xy)
+                               bool mirror_y, bool swap_xy, lv_color_format_t color_format,
+                               uint32_t buffer_size_px, bool double_buffer)
     : LcdDisplay(panel_io, panel, width, height) {
     ESP_LOGI(TAG, "Initialize LVGL library");
     lv_init();
@@ -255,8 +256,8 @@ MipiLcdDisplay::MipiLcdDisplay(esp_lcd_panel_io_handle_t panel_io, esp_lcd_panel
         .io_handle = panel_io,
         .panel_handle = panel,
         .control_handle = nullptr,
-        .buffer_size = static_cast<uint32_t>(width_ * 50),
-        .double_buffer = false,
+        .buffer_size = buffer_size_px ? buffer_size_px : static_cast<uint32_t>(width_ * 50),
+        .double_buffer = double_buffer,
         .hres = static_cast<uint32_t>(width_),
         .vres = static_cast<uint32_t>(height_),
         .monochrome = false,
@@ -267,10 +268,13 @@ MipiLcdDisplay::MipiLcdDisplay(esp_lcd_panel_io_handle_t panel_io, esp_lcd_panel
                 .mirror_x = mirror_x,
                 .mirror_y = mirror_y,
             },
+        .color_format = color_format,
+        // esp_lvgl_port only allows DMA buffers for RGB565; non-RGB565 (e.g. RGB888)
+        // displays must use a PSRAM buffer instead, matching the aibox reference.
         .flags =
             {
-                .buff_dma = true,
-                .buff_spiram = false,
+                .buff_dma = (color_format == LV_COLOR_FORMAT_RGB565),
+                .buff_spiram = (color_format != LV_COLOR_FORMAT_RGB565),
                 .sw_rotate = true,
             },
     };
